@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-import scipy
+import scipy.fft as scipy
 import numpy as np
 import cv2
 
@@ -58,15 +58,14 @@ def rowwise_fft(vid):
     histim = np.empty((num_bins, vid.shape[2]))
 
     T = 1.0/vid.shape[0]
-    fft_samps = np.linspace(0.0, 1.0/(2.0*T), vid.shape[0]/2)
+    fft_samps = np.linspace(0.0, 1.0/(2.0*T), vid.shape[0]//2)
 
     for t in range(vid.shape[2]):
         for row in range(vid.shape[0]):
             rowfft = scipy.fft(vid[row, :, t])
-            plt.plot(fft_samps, np.square(np.abs(rowfft)))
+            plt.plot(fft_samps, np.abs(rowfft[0:vid.shape[0]//2]))
             plt.draw()
-
-
+        plt.show()
 
 
 

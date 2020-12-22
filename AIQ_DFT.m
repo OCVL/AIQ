@@ -16,7 +16,7 @@ function [ snr ] = AIQ_DFT(test_image)
 %     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 %
 %
-clear
+% clear
 % close all
 
 if ~exist('test_image','var') || isempty(test_image)
@@ -28,7 +28,7 @@ if ~exist('test_image','var') || isempty(test_image)
 %     test_image = test_image./immax;
 %     test_image = imnoise(test_image, 'gaussian',0, 0.01).*immax;
     
-    figure(9); imagesc(test_image); colormap gray; axis image;
+%     figure(9); imagesc(test_image); colormap gray; axis image;
 end
 
 % tic;
@@ -118,7 +118,8 @@ for r=1:length(pixel_spac(:))
 end
 
 welchDFTs = mean(fullfourierProfiles,3,'omitnan');
-figure(1); imagesc(log10(welchDFTs)); axis image;
+
+% figure(1); imagesc(log10(welchDFTs)); axis image;
 
 
 
@@ -129,7 +130,7 @@ thetasampling = 1;
 
 [polarroi, power_spect_radius] = imcart2pseudopolar(welchDFTs,rhosampling,thetasampling,[],'makima', rhostart);
 polarroi = circshift(polarroi,-90/thetasampling,1);
-figure(101); imagesc(log10(abs(polarroi))); axis image;
+% figure(101); imagesc(log10(abs(polarroi))); axis image;
 
 upper_n_lower = [1:45 136:180]/thetasampling;
 right = (46:135)/thetasampling;

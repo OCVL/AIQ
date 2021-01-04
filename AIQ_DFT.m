@@ -1,6 +1,6 @@
 function [ snr ] = AIQ_DFT(test_image)
 
-% Copyright (C) 2019 Robert F Cooper
+% Copyright (C) 2020 Robert F Cooper
 % 
 %     This program is free software: you can redistribute it and/or modify
 %     it under the terms of the GNU General Public License as published by
@@ -111,7 +111,7 @@ for r=1:length(pixel_spac(:))
     if ~isempty(roi{r})        
         
 
-        power_spect = abs(fftshift(fft2( hann_twodee.*roi{r} )./(roi_size^2) )).^2;        
+        power_spect = abs(fftshift(fft2( hann_twodee.*roi{r} )./(roi_size) )).^2;        
                 
         fullfourierProfiles(:,:,r) = power_spect;
     end    
@@ -143,7 +143,7 @@ freqBins = (rhostart:size(polarroi,2)-1).*freq_bin_size;
 
 
 
-spacing_bins = 0.4./freqBins;
+spacing_bins = 0.5./freqBins;
 rperange = find(spacing_bins > 12 & spacing_bins <= 20);
 conerange = find(spacing_bins > 2.5 & spacing_bins <= 12);
 rodrange = find(spacing_bins > 1.25 & spacing_bins <= 2.5);
@@ -161,9 +161,10 @@ snr = 10*log10(abs(freq_bin_size.*sum(diff(right_fourierProfile(totalrange)))) .
 % rodratio = (freq_bin_size.*sum(right_fourierProfile(rodrange))) ./ noisepower
 % rperatio = (freq_bin_size.*sum(right_fourierProfile(rperange))) ./ noisepower
 
-% figure;
+figure;
 % plot(freqBins,log10(right_fourierProfile));
-% plot( diff(log10(right_fourierProfile)));
+% plot(freqBins, diff(log10(right_fourierProfile)));
+plot(spacing_bins(1:end-1), diff(log10(right_fourierProfile))); axis([0 20 -1.2 .2])
 
 toc;
 end

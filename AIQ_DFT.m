@@ -77,9 +77,9 @@ end
 
 
 % Our roi size should always be divisible by 2 (for simplicity).
-if rem(roi_size,2) ~= 0
-    roi_size = roi_size-1;
-end
+% if rem(roi_size,2) ~= 0
+%     roi_size = roi_size-1;
+% end
 roi = cell(round((size(test_image)-roi_size)/roi_step));
 
 for i=imbox(2):roi_step:imbox(2)+imbox(4)-roi_size
@@ -103,47 +103,61 @@ confidence = nan(size(roi));
 % Make our hanning window for each ROI.
 hann_twodee = hanning(roi_size)*hanning(roi_size)';
 
-fullfourierProfiles = nan([roi_size roi_size length(roi)]);
+fullfourierProfiles = nan([roi_size roi_size length(roi(:))]);
 polarProfiles = nan([360 roi_size length(roi)]);
 
-tic;
-for r=1:length(pixel_spac(:))
-    if ~isempty(roi{r})        
-        
-
-        power_spect = abs(fftshift(fft2( hann_twodee.*roi{r} )./(roi_size) )).^2;        
-                
-        fullfourierProfiles(:,:,r) = power_spect;
-    end    
-end
-
-welchDFTs = mean(fullfourierProfiles,3,'omitnan');
-
-% figure(1); imagesc(log10(welchDFTs)); axis image;
-
-
+polarsingle=nan([length(roi(:)), roi_size]);
 
 rhostart=0; % Exclude the DC term from our radial average
 
 rhosampling = .5;
 thetasampling = 1;
 
-[polarroi, power_spect_radius] = imcart2pseudopolar(welchDFTs,rhosampling,thetasampling,[],'makima', rhostart);
-polarroi = circshift(polarroi,-90/thetasampling,1);
-% figure(101); imagesc(log10(abs(polarroi))); axis image;
+% figure; hold on;
+tic;
+for r=1:length(pixel_spac(:))
+    if ~isempty(roi{r})        
+        
+    
+        power_spect = abs(fftshift(fft2( hann_twodee.*roi{r} )./(roi_size) )).^2;        
+                
+        fullfourierProfiles(:,:,r) = power_spect;
+        
+%         polarroi = imcart2pseudopolar(power_spect,rhosampling,thetasampling,[],'makima', rhostart);
+%         polarroi = circshift(polarroi,-90/thetasampling,1);
+%         polarsingle(r,:) = mean(polarroi(1:180,:));
+%         plot( diff(log10(polarsingle(r,:))) );
+    end    
+end
 
-upper_n_lower = [1:45 136:180]/thetasampling;
-right = (46:135)/thetasampling;
-upper_n_lower_fourierProfile = mean(polarroi(upper_n_lower,:));
-right_fourierProfile = (mean(polarroi(right,:)));
+welchDFTs = mean(fullfourierProfiles,3,'omitnan');
+welchDFTsvar = var(fullfourierProfiles,0,3,'omitnan');
+
+% figure(1); imagesc(log10(welchDFTs)); axis image;
+
+[allpolarroi, power_spect_radius] = imcart2pseudopolar(welchDFTs,rhosampling,thetasampling,[],'linear', rhostart);
+allpolarroi = circshift(allpolarroi,-90/thetasampling,1);
+
+% [allpolarroi_std] = imcart2pseudopolar(welchDFTsvar,rhosampling,thetasampling,[],'makima', rhostart);
+% allpolarroi_std = circshift(allpolarroi_std,-90/thetasampling,1);
+% allpolarroi_std = sqrt(mean(allpolarroi_std(1:180,:)));
+
+% figure(101); imagesc(log10(allpolarroi)); axis image;
+
+% For if we're only paying attention to cone spacing...
+% upper_n_lower = [1:45 136:180]/thetasampling;
+% right = (46:135)/thetasampling;
+% upper_n_lower_fourierProfile = mean(allpolarroi(upper_n_lower,:));
+% right_fourierProfile = (mean(allpolarroi(right,:)));
+right_fourierProfile = mean(allpolarroi(1:180,:));
      
 % k*(fs/N)
-freq_bin_size = rhosampling/size(polarroi,2);
-freqBins = (rhostart:size(polarroi,2)-1).*freq_bin_size;
+freq_bin_size = rhosampling/size(allpolarroi,2);
+freqBins = (rhostart:size(allpolarroi,2)-1).*freq_bin_size;
 
 
 
-spacing_bins = 0.5./freqBins;
+spacing_bins = 0.45./freqBins;
 rperange = find(spacing_bins > 12 & spacing_bins <= 20);
 conerange = find(spacing_bins > 2.5 & spacing_bins <= 12);
 rodrange = find(spacing_bins > 1.25 & spacing_bins <= 2.5);
@@ -161,10 +175,11 @@ snr = 10*log10(abs(freq_bin_size.*sum(diff(right_fourierProfile(totalrange)))) .
 % rodratio = (freq_bin_size.*sum(right_fourierProfile(rodrange))) ./ noisepower
 % rperatio = (freq_bin_size.*sum(right_fourierProfile(rperange))) ./ noisepower
 
-figure;
+% figure; hold on;
 % plot(freqBins,log10(right_fourierProfile));
-% plot(freqBins, diff(log10(right_fourierProfile)));
-plot(spacing_bins(1:end-1), diff(log10(right_fourierProfile))); axis([0 20 -1.2 .2])
+
+% plot(freqBins(1:end-1), diff(log10(right_fourierProfile)));
+% plot(spacing_bins(1:end-1), diff(log10(right_fourierProfile))); axis([0 20 -1.2 .2])
 
 toc;
 end

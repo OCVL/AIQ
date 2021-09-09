@@ -81,10 +81,14 @@ def aiq(image):
         print("No scale value entered. Defaulting to 0.45 microns...")
         scaleval = 0.45
 
-    spacing_bins = float(scaleval) / freqBins
+    spacing_bins = 1 / freqBins
 
-    noise_range = polar_avg[(spacing_bins > 0) & (spacing_bins <= 1.25)]
-    total_range = polar_avg[(spacing_bins > 1.25) & (spacing_bins <= 20)]
+
+    low_noise_cutoff = 1 / (0.5 * 0.045)
+    high_noise_cutoff = 1 / (0.5 * 0.7)
+
+    noise_range = polar_avg[(spacing_bins > 0) & (spacing_bins <= high_noise_cutoff)]
+    total_range = polar_avg[(spacing_bins > high_noise_cutoff) & (spacing_bins <= low_noise_cutoff)]
 
     # Use of the DERIVATIVE of the power spectrum captures any areas of interest that would cause sudden changes
     tot_power_change = abs(freq_bin_size * np.sum(np.diff(noise_range)))

@@ -157,13 +157,16 @@ freqBins = (rhostart:size(allpolarroi,2)-1).*freq_bin_size;
 
 
 
-spacing_bins = 0.45./freqBins;
+spacing_bins = 1./freqBins;
 rperange = find(spacing_bins > 12 & spacing_bins <= 20);
 conerange = find(spacing_bins > 2.5 & spacing_bins <= 12);
 rodrange = find(spacing_bins > 1.25 & spacing_bins <= 2.5);
 
-noiserange = find(spacing_bins > 0 & spacing_bins <= 1.25);
-totalrange = find(spacing_bins > 1.25 & spacing_bins <= 20);
+low_noise_cutoff = 1 / (0.5 * 0.045)
+high_noise_cutoff = 1 / (0.5 * 0.7)
+
+noiserange = find(spacing_bins > 0 & spacing_bins <= high_noise_cutoff);
+totalrange = find(spacing_bins > high_noise_cutoff & spacing_bins <= low_noise_cutoff);
 
 % totalpower = freq_bin_size.*sum(right_fourierProfile(totalrange));
 noisepower = abs(freq_bin_size.*sum(diff(right_fourierProfile(noiserange))));

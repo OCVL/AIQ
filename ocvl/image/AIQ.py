@@ -47,7 +47,7 @@ def welch_2d_windowing(image, window):
     return smooth_pwrspect
 
 
-def aiq(image):
+def aiq(imageData):
     # Create a window that is effectively a quarter of our image size.
     windowData = hanning_2d(imageData.shape, 0.25)
 
@@ -87,7 +87,7 @@ def aiq(image):
     low_noise_cutoff = 1 / (0.5 * 0.045)
     high_noise_cutoff = 1 / (0.5 * 0.7)
 
-    noise_range = polar_avg[(spacing_bins > 0) & (spacing_bins <= high_noise_cutoff)]
+    noise_range = polar_avg[(spacing_bins > low_noise_cutoff) & (spacing_bins <= high_noise_cutoff)]
     total_range = polar_avg[(spacing_bins > high_noise_cutoff) & (spacing_bins <= low_noise_cutoff)]
 
     # Use of the DERIVATIVE of the power spectrum captures any areas of interest that would cause sudden changes

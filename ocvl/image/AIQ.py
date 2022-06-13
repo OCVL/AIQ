@@ -36,29 +36,191 @@ def welch_2d_windowing(image, window):
     for i in range(len(rows)):
         for j in range(len(cols)):
             windowed_roi = np.multiply(window, image[rows[i]:(rows[i] + winDim[0]), cols[j]:(cols[j] + winDim[1])])
+            im_win = image[rows[i]:(rows[i] + winDim[0]), cols[j]:(cols[j] + winDim[1])]
+            '''
+            # Step 2: Display the Image inside the window
+            fig2 = plt.figure(2)
+            plt.imshow(im_win, cmap='gray')
+            plt.title("Image inside the Window")
+            
+            # Step 3: Display Windowed Image
+            fig3 = plt.figure(3)
+            plt.imshow(windowed_roi, cmap='gray')
+            plt.title("Windowed Image")
+            '''
             comparr = scipy.fft.fftshift(scipy.fft.fft2(windowed_roi))
 
             # Normalize our dft by sqrt(N) so that window size doesn't affect SNR estimation.
             comparr = np.divide(comparr, np.sqrt(winDim[0] * winDim[1]))
             comparr = np.abs(comparr) * np.abs(comparr)
+            '''
+            # Step 4: Display the DFT of the windowed image
+            fig4 = plt.figure(4)
+            plt.imshow(np.log10(comparr), cmap='gray')
+            plt.title("DFT of Windowed Image")
 
+            plt.show(block=False)
+            '''
             allroi[:, :, r] = comparr
             r += 1
 
     smooth_pwrspect = np.mean(allroi, axis=2)
-    stddev_pwrspect = np.std(allroi, axis=2)  # This is not used why is that?
+    # stddev_pwrspect = np.std(allroi, axis=2)  # This is not used why is that?
 
+    '''
+    # Step 5: Display the average of the DFT
+    fig5= plt.figure(5)
+    plt.imshow(np.log10(smooth_pwrspect), cmap='gray')
+    plt.title("Average of the DFT from all Windowed Images")
+    plt.show()
+    '''
     # plt.imshow(np.log10(stddev_pwrspect), cmap="gray")
     # plt.show()
-    return smooth_pwrspect
+    return smooth_pwrspect, allroi
 
+
+def calculateSNR(welch_pwr_spect, totalROIS):
+    thetasampling = 1
+    rhosampling = 0.5
+
+    # Our maximum valid radius is only as big as half our window size.
+    maxrad = int(np.floor(welch_pwr_spect.shape[0] / 2)) + 1
+
+    polar_spect_welch = warp_polar(welch_pwr_spect, radius=maxrad, output_shape=(
+        360 / thetasampling, maxrad / rhosampling))  # Change the coordinate space of the image
+    # Remove the last column because it always seems to be all zeros anyway.
+    polar_spect_welch = polar_spect_welch[0:180, :]
+
+    # Make the 0's nan, so that when we calculate our mean we exlcude the exluded areas.
+    polar_spect_welch[polar_spect_welch == 0] = np.nan
+
+    polar_avg_welch = np.nanmean(polar_spect_welch, axis=0)  # compute the mean along the specified axis, ignoring Nans
+    bef = len(polar_avg_welch)
+    aft = bef - 2
+    polar_avg_welch = polar_avg_welch[0:aft]
+
+    # Determine the frequency cutoff between signal/noise
+    freq_bin_size_welch = rhosampling / polar_spect_welch.shape[1]  # The size/span of each bin
+    freqBins_welch = np.arange(polar_spect_welch.shape[
+                             1] - 2) * freq_bin_size_welch  # evenly space the values in the array and multiply them by the size/span of each bin
+    freqBins_welch[0] = -1  # Our first element is the DC term and won't be included in the calculation anyway- so exlcude it
+
+    spacing_bins_welch = 1 / freqBins_welch
+    spacing_bins_welch[0] = 10000
+    low_noise_cutoff_welch = 1 / (0.5 * 0.0575)
+    high_noise_cutoff_welch = 1 / (0.5 * 0.7)
+
+    freqBins_welch[0] = 0
+
+    '''
+    # Step 6: Display the Average polar plot
+    fig6 = plt.figure(6)
+    plt.plot(freqBins, np.log10(polar_avg), color='c')
+    plt.title("Polar Plot")
+    '''
+
+    # find the range that the noise is in
+    signal_range_welch = polar_avg_welch[
+        (spacing_bins_welch <= low_noise_cutoff_welch) & (spacing_bins_welch >= high_noise_cutoff_welch)]
+
+    # this is the total range of frequencies in the image
+    total_range_welch = polar_avg_welch[(spacing_bins_welch < high_noise_cutoff_welch)]
+
+    # Use of the DERIVATIVE of the power spectrum captures any areas of interest that would cause sudden changes
+    # diffs = np.diff(polar_avg)
+
+    signal_power_change_welch = freq_bin_size_welch * np.sum(abs(np.diff(signal_range_welch)))
+    noise_power_change_welch = freq_bin_size_welch * np.sum(abs(np.diff(total_range_welch)))
+
+    '''
+    # Step 7: Take the derivative of the polar average
+    fig7 = plt.figure(7)
+    xs = np.linspace(1/low_noise_cutoff, 1/high_noise_cutoff, len(diffs) - 1)
+    plt.plot(freqBins[1:], diffs, color='r', label='derivative')
+    # plt.xlim([(1/low_noise_cutoff)-0.005, (1/high_noise_cutoff)+0.005])
+    plt.ylim([-200, 200])
+    plt.axvline(1/low_noise_cutoff, color='c', label='Low Cutoff')
+    plt.axvline(1/high_noise_cutoff, color='y', label='High Cutoff')
+    plt.title("Derivative of Polar Plot")
+
+    plt.show(block=False)
+    '''
+
+    SNR_welch = 10 * np.log10(signal_power_change_welch / noise_power_change_welch)
+
+    SNR_ROIs = []
+
+    # Perform the same calculations as above but for each of the ROIs
+    for b in range(0, totalROIS.shape[2]):
+        # Calculating the Polar spect for each ROI
+        polar_spect = warp_polar(totalROIS[:, :, b], radius=maxrad, output_shape=(
+            360 / thetasampling, maxrad / rhosampling))  # Change the coordinate space of the image
+
+        # Remove the last column because it always seems to be all zeros anyway.
+        polar_spect = polar_spect[0:180, :]
+
+        # Make the 0's nan, so that when we calculate our mean we exlcude the exluded areas.
+        polar_spect[polar_spect == 0] = np.nan
+
+        polar_avg = np.nanmean(polar_spect, axis=0)  # compute the mean along the specified axis, ignoring Nans
+        bef = len(polar_avg)
+        aft = bef - 2
+        polar_avg = polar_avg[0:aft]
+
+        # Determine the frequency cutoff between signal/noise
+        freq_bin_size = rhosampling / polar_spect.shape[1]  # The size/span of each bin
+
+        # evenly space the values in the array and multiply them by the size/span of each bin
+        freqBins = np.arange(polar_spect.shape[1] - 2) * freq_bin_size
+
+        # Our first element is the DC term and won't be included in the calculation anyway- so exlcude it
+        freqBins[0] = -1
+
+        spacing_bins = 1 / freqBins
+        spacing_bins[0] = 10000
+        low_noise_cutoff = 1 / (0.5 * 0.0575)
+        high_noise_cutoff = 1 / (0.5 * 0.7)
+
+        freqBins[0] = 0
+
+        # find the range that the noise is in
+        signal_range = polar_avg[
+            (spacing_bins <= low_noise_cutoff) & (spacing_bins >= high_noise_cutoff)]
+
+        # this is the total range of frequencies in the image
+        total_range = polar_avg[(spacing_bins < high_noise_cutoff)]
+
+        signal_power_change = freq_bin_size_welch * np.sum(abs(np.diff(signal_range)))
+        noise_power_change = freq_bin_size_welch * np.sum(abs(np.diff(total_range)))
+
+        SNR = 10 * np.log10(signal_power_change / noise_power_change)
+        SNR_ROIs.append(SNR)
+
+    return SNR_welch, SNR_ROIs
 
 def aiq(image):
     # Create a window that is effectively a quarter of our image size.
     windowData = hanning_2d(image.shape, 0.25)  # makes the hanning window defined above
+    '''
+    # Step 1: Display the hann Window
+    fig1 = plt.figure(1)
+    plt.imshow(windowData, cmap='gray')
+    plt.title("Hann Window")
+    plt.show()
+    '''
 
-    welch_pwr_spect = welch_2d_windowing(image, windowData)  # Calling the function that creates the graph window
+    welchPower, allTheROIs = welch_2d_windowing(image, windowData)  # Calling the function that creates the graph window
+    # Need to make the below into a function so that this is done on each of the ROIs returned above - get an SNR for each ROI and then with those ROIs we will make a histogram with those
 
+    SNR_image, SNR_List = calculateSNR(welchPower, allTheROIs)
+
+    fig = plt.figure(5)
+    plt.hist(SNR_List)
+    plt.title("Histogram of all ROI")
+    plt.show()
+
+
+    '''
     thetasampling = 1
     rhosampling = 0.5
 
@@ -69,10 +231,6 @@ def aiq(image):
         360 / thetasampling, maxrad / rhosampling))  # Change the coordinate space of the image
     # Remove the last column because it always seems to be all zeros anyway.
     polar_spect = polar_spect[0:180, :]
-
-    #plt.imshow(np.log10(polar_spect), cmap="gray")
-    #plt.title("Polar Plot")
-    #plt.show()
 
     # Make the 0's nan, so that when we calculate our mean we exlcude the exluded areas.
     polar_spect[polar_spect == 0] = np.nan
@@ -94,14 +252,11 @@ def aiq(image):
     high_noise_cutoff = 1 / (0.5 * 0.7)
 
     freqBins[0] = 0
-    '''
+
+    # Step 6: Display the Average polar plot
+    fig6 = plt.figure(6)
     plt.plot(freqBins, np.log10(polar_avg), color='c')
     plt.title("Polar Plot")
-    plt.show()
-    sname = "D:\Brea_Brennan\Image_Quality_Analysis\Poster Materials\PolarPlot_ARVOPoster.svg"
-    plt.savefig(sname)
-    plt.clf()
-    '''
 
     signal_range = polar_avg[
         (spacing_bins <= low_noise_cutoff) & (spacing_bins >= high_noise_cutoff)]  # find the range that the noise is in
@@ -113,21 +268,23 @@ def aiq(image):
     signal_power_change = freq_bin_size * np.sum(abs(np.diff(signal_range)))
     noise_power_change = freq_bin_size * np.sum(abs(np.diff(total_range)))
 
-    '''
-    # The code for the derivative graph should go here
-    xs = np.linspace(0, (len(diffs) - 1), len(polar_avg) - 1)
-    plt.plot(xs, diffs, color='y', label='derivative')
-    plt.title("Derivative Plot")
-    plt.show()
-    dname = "D:\Brea_Brennan\Image_Quality_Analysis\Poster Materials\derivativePlot_ARVOPoster.svg"
-    plt.savefig(dname)
-    plt.clf()
-    '''
+    
+    # Step 7: Take the derivative of the polar average
+    fig7 = plt.figure(7)
+    xs = np.linspace(1/low_noise_cutoff, 1/high_noise_cutoff, len(diffs) - 1)
+    plt.plot(freqBins[1:], diffs, color='r', label='derivative')
+    # plt.xlim([(1/low_noise_cutoff)-0.005, (1/high_noise_cutoff)+0.005])
+    plt.ylim([-200, 200])
+    plt.axvline(1/low_noise_cutoff, color='c', label='Low Cutoff')
+    plt.axvline(1/high_noise_cutoff, color='y', label='High Cutoff')
+    plt.title("Derivative of Polar Plot")
+
+    plt.show(block=False)
+    
 
     SNR = 10 * np.log10(signal_power_change / noise_power_change)
-    # print("Estimated SNR of this image is: " + str(SNR))
-
-    return str(SNR)
+    '''
+    return str(SNR_image)
 
 
 def load_image(image_filename):
@@ -196,7 +353,7 @@ if __name__ == '__main__':
     imNums = 1  # track the image numbers for naming purposes
 
     if q != 1:
-        fWhole = open("AOIP_Confocal_Updated_SNR_Whole.txt", "w")
+        fWhole = open("AOIP_StripReg_Split_Images.txt", "w")
     else:
         fROI = open("SNR_MAP_ROI_64_75p_AC3.txt", "w")  # file to save the results in
 

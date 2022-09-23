@@ -4,8 +4,8 @@ import scipy
 from skimage.transform import warp_polar
 import numpy as np
 import cv2
-import csv
 from tkinter import filedialog, simpledialog
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
 def hanning_2d(dimension, fraction):
@@ -79,7 +79,7 @@ def welch_2d_windowing(image, window):
     return smooth_pwrspect, allroi
 
 
-def calculateSNR(welch_pwr_spect, totalROIS):
+def calculateSNR(welch_pwr_spect, totalROIS, image, window):
     thetasampling = 1
     rhosampling = 0.5
 
@@ -147,7 +147,6 @@ def calculateSNR(welch_pwr_spect, totalROIS):
     '''
 
     SNR_welch = 10 * np.log10(signal_power_change_welch / noise_power_change_welch)
-
     SNR_ROIs = []
 
     # Perform the same calculations as above but for each of the ROIs
@@ -194,9 +193,55 @@ def calculateSNR(welch_pwr_spect, totalROIS):
         noise_power_change = freq_bin_size_welch * np.sum(abs(np.diff(total_range)))
 
         SNR = 10 * np.log10(signal_power_change / noise_power_change)
+
         SNR_ROIs.append(SNR)
 
+    ''' HEAT MAP GENERATION CODE '''
+    # Dimensions for heat map set up
+    imDim = image.shape  # Shape parameter of the image
+    winDim = window.shape  # Shape parameter of the window
+
+    # Variable to hold the generated heat map
+    heatMap = np.zeros(shape=image.shape)
+    sum_map = np.zeros(shape=image.shape)
+
+    # Create steps with a 50% overlap between the windows
+    rows = range(0, int(imDim[0] - winDim[0]), int(np.floor(
+        winDim[0] / 2.0)))  # Starts at 0, stop at imdim[0]-winDim[0] and increase by the 3rd parameter
+    cols = range(0, int(imDim[1] - winDim[1]), int(np.floor(winDim[1] / 2.0)))
+
+    count = 0
+    for a in range(len(rows)):
+        for b in range(len(cols)):
+            # Add the SNR calculated above to the heat map
+            heatMap[rows[a]:(rows[a] + winDim[0]), cols[b]:(cols[b] + winDim[1])] = heatMap[rows[a]:(rows[a] + winDim[0]), cols[b]:(cols[b] + winDim[1])] + SNR_ROIs[count]
+            sum_map[rows[a]:(rows[a] + winDim[0]), cols[b]:(cols[b] + winDim[1])] = sum_map[rows[a]:(rows[a] + winDim[0]), cols[b]:(cols[b] + winDim[1])] + 1
+
+            count += 1
+    '''
+    # Display the Heat map
+    fig1 = plt.figure(1)
+    plt.imshow(heatMap, cmap='bone')
+    plt.title("Heat Map for the Image")
+    plt.show()
+
+    fig2 = plt.figure(2)
+    plt.imshow(sum_map, cmap='bone')
+    plt.title("Sum Map for the Image")
+    plt.show()
+
+    avg_map = np.divide(heatMap, sum_map)
+
+    ax = plt.subplot()
+    im = ax.imshow(avg_map)
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="5%", pad=0.05)
+    plt.colorbar(im, cax=cax)
+    plt.show()
+    plt.show(block=False)
+    '''
     return SNR_welch, SNR_ROIs
+
 
 def aiq(image):
     # Create a window that is effectively a quarter of our image size.
@@ -212,15 +257,19 @@ def aiq(image):
     welchPower, allTheROIs = welch_2d_windowing(image, windowData)  # Calling the function that creates the graph window
     # Need to make the below into a function so that this is done on each of the ROIs returned above - get an SNR for each ROI and then with those ROIs we will make a histogram with those
 
-    SNR_image, SNR_List = calculateSNR(welchPower, allTheROIs)
-
+    SNR_image, SNR_List = calculateSNR(welchPower, allTheROIs, image, windowData)
+    '''
     fig = plt.figure(5)
-    plt.hist(SNR_List)
+    plt.hist(SNR_List, range=[10, 45])
     plt.title("Histogram of all ROI")
     plt.show()
 
+    file = open("HeatMapSNRs_FFR.txt", "w")
+    for index in range(len(SNR_List)):
+        file.write(str(SNR_List[index]) + "\n")
 
-    '''
+    file.close()
+    
     thetasampling = 1
     rhosampling = 0.5
 
@@ -353,7 +402,7 @@ if __name__ == '__main__':
     imNums = 1  # track the image numbers for naming purposes
 
     if q != 1:
-        fWhole = open("AOIP_StripReg_Split_Images.txt", "w")
+        fWhole = open("AOIP_Manuscript_Confocal_Images_SNR.txt", "w")
     else:
         fROI = open("SNR_MAP_ROI_64_75p_AC3.txt", "w")  # file to save the results in
 

@@ -67,13 +67,13 @@ def welch_2d_windowing(image, window):
     smooth_pwrspect = np.mean(allroi, axis=2)
     # stddev_pwrspect = np.std(allroi, axis=2)  # This is not used why is that?
 
-    '''
+
     # Step 5: Display the average of the DFT
-    fig5= plt.figure(5)
-    plt.imshow(np.log10(smooth_pwrspect), cmap='gray')
-    plt.title("Average of the DFT from all Windowed Images")
-    plt.show()
-    '''
+    # fig5 = plt.figure(2)
+    # plt.imshow(np.log10(smooth_pwrspect), cmap='gray')
+    # plt.title("Average of the DFT from all Windowed Images")
+    # plt.show(block=False)
+
     # plt.imshow(np.log10(stddev_pwrspect), cmap="gray")
     # plt.show()
     return smooth_pwrspect, allroi
@@ -89,10 +89,20 @@ def calculateSNR(welch_pwr_spect, totalROIS, image, window):
     polar_spect_welch = warp_polar(welch_pwr_spect, radius=maxrad, output_shape=(
         360 / thetasampling, maxrad / rhosampling))  # Change the coordinate space of the image
     # Remove the last column because it always seems to be all zeros anyway.
-    polar_spect_welch = polar_spect_welch[0:180, :]
+    # polar_spect_welch = polar_spect_welch[0:180, :]
+    polar_spect_welch = polar_spect_welch[3:177, :]
 
     # Make the 0's nan, so that when we calculate our mean we exlcude the exluded areas.
     polar_spect_welch[polar_spect_welch == 0] = np.nan
+
+    polar_spect_welch = np.delete(polar_spect_welch,
+                                  [76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93], axis=0)
+
+    # plt.figure(3)
+    # plt.plot(np.log10(polar_spect_welch.transpose()))
+    # plt.title("Polar Spect Welch Each row")
+    # plt.show(block=False)
+
 
     polar_avg_welch = np.nanmean(polar_spect_welch, axis=0)  # compute the mean along the specified axis, ignoring Nans
     bef = len(polar_avg_welch)
@@ -355,7 +365,7 @@ def ROIExtraction(data):
     imsize = data.shape
     rows = imsize[0]
     cols = imsize[1]
-    ovl = .25  # over lap between the ROIs 1- % you want
+    ovl = .25  # overlap between the ROIs 1- % you want
     inc = int(np.ceil(dim * ovl))
 
     # Generate all the arrays and lists needed to operate
@@ -395,14 +405,18 @@ if __name__ == '__main__':
     # Get all the images
     print("Start\n")
     images = get_files()
+    # videos = get_files()    # used to get the video
     w = 0  # set to 1 in order to write the ROI
     SNRs = []
     sumR = 0
-    q = 0  # set to 1 for ROI implementation
+    q = 0  # set to 1 for ROI implementation and 2 for video implementation
     imNums = 1  # track the image numbers for naming purposes
 
-    if q != 1:
-        fWhole = open("AOIP_Manuscript_Confocal_Images_SNR.txt", "w")
+    if q == 0:
+        # fWhole = open("AOIP_Manuscript_Confocal_Images_SNR.txt", "w")
+        fWhole = open("OCVL_Manuscript_Split_Images_SNR.txt", "w")
+    elif q == 2:
+        f_video = open("SNR_confocal_video_00-04710_vid_998.txt", "w")
     else:
         fROI = open("SNR_MAP_ROI_64_75p_AC3.txt", "w")  # file to save the results in
 
@@ -437,11 +451,11 @@ if __name__ == '__main__':
             savePath = "D:\Brea_Brennan\Image_Quality_Analysis\ROIs For Map\\" + name
             cv2.imwrite(savePath, Gen_map)
 
-        # Clear the entire list in case there are less ROIs generated in the next image and restart the sum
+        # Clear the entire list in case there are fewer ROIs generated in the next image and restart the sum
         SNRs.clear()
         sumR = 0
 
-        # To write the ROI generated to there own tif files
+        # To write the ROI generated to their own tif files
         if w == 1:
             for t in range(R.shape[2]):
                 name = "ROI" + str(t) + ".tif"
@@ -452,8 +466,28 @@ if __name__ == '__main__':
                 else:
                     cv2.imwrite(savePath, temp)
 
-    if q != 1:
+    # for v in videos:
+    #     cap = cv2.VideoCapture(v)
+    #     f_num = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    #     print(f_num)
+    #     for f in range(0, f_num):
+    #         ret, frame = cap.read()
+    #         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    #
+    #         # fig1 = plt.figure(1)
+    #         # plt.imshow(frame, cmap='gray')
+    #         # plt.title("Frame " + str(f))
+    #         # plt.show()
+    #
+    #         SNR_frame = aiq(frame)
+    #
+    #         print("Frame image SNR: " + str(SNR_frame))
+    #         f_video.write(str(SNR_frame) + "\n")
+
+    if q == 0:
         fWhole.close()
+    elif q == 2:
+        f_video.close()
     else:
         fROI.close()
 

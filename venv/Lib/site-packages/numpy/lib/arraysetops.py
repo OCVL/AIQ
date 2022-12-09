@@ -131,13 +131,13 @@ def _unpack_tuple(x):
 
 
 def _unique_dispatcher(ar, return_index=None, return_inverse=None,
-                       return_counts=None, axis=None):
+                       return_counts=None, axis=None, *, equal_nan=None):
     return (ar,)
 
 
 @array_function_dispatch(_unique_dispatcher)
 def unique(ar, return_index=False, return_inverse=False,
-           return_counts=False, axis=None):
+           return_counts=False, axis=None, *, equal_nan=True):
     """
     Find the unique elements of an array.
 
@@ -162,9 +162,6 @@ def unique(ar, return_index=False, return_inverse=False,
     return_counts : bool, optional
         If True, also return the number of times each unique item appears
         in `ar`.
-
-        .. versionadded:: 1.9.0
-
     axis : int or None, optional
         The axis to operate on. If None, `ar` will be flattened. If an integer,
         the subarrays indexed by the given axis will be flattened and treated
@@ -174,6 +171,11 @@ def unique(ar, return_index=False, return_inverse=False,
         default is None.
 
         .. versionadded:: 1.13.0
+
+    equal_nan : bool, optional
+        If True, collapses multiple NaN values in the return array into one.
+
+        .. versionadded:: 1.24
 
     Returns
     -------
@@ -208,6 +210,16 @@ def unique(ar, return_index=False, return_inverse=False,
     treated in the same way as any other 1-D array. The result is that the
     flattened subarrays are sorted in lexicographic order starting with the
     first element.
+
+    .. versionchanged: NumPy 1.21
+        If nan values are in the input array, a single nan is put
+        to the end of the sorted unique values.
+
+        Also for complex arrays all NaN values are considered equivalent
+        (no matter whether the NaN is in the real or imaginary part).
+        As the representant for the returned array the smallest one in the
+        lexicographical order is chosen - see np.sort for how the lexicographical
+        order is defined for complex arrays.
 
     Examples
     --------
@@ -259,7 +271,8 @@ def unique(ar, return_index=False, return_inverse=False,
     """
     ar = np.asanyarray(ar)
     if axis is None:
-        ret = _unique1d(ar, return_index, return_inverse, return_counts)
+        ret = _unique1d(ar, return_index, return_inverse, return_counts, 
+                        equal_nan=equal_nan)
         return _unpack_tuple(ret)
 
     # axis was specified and not None
@@ -302,13 +315,13 @@ def unique(ar, return_index=False, return_inverse=False,
         return uniq
 
     output = _unique1d(consolidated, return_index,
-                       return_inverse, return_counts)
+                       return_inverse, return_counts, equal_nan=equal_nan)
     output = (reshape_uniq(output[0]),) + output[1:]
     return _unpack_tuple(output)
 
 
 def _unique1d(ar, return_index=False, return_inverse=False,
-              return_counts=False):
+              return_counts=False, *, equal_nan=True):
     """
     Find the unique elements of an array, ignoring shape.
     """
@@ -324,7 +337,19 @@ def _unique1d(ar, return_index=False, return_inverse=False,
         aux = ar
     mask = np.empty(aux.shape, dtype=np.bool_)
     mask[:1] = True
-    mask[1:] = aux[1:] != aux[:-1]
+    if (equal_nan and aux.shape[0] > 0 and aux.dtype.kind in "cfmM" and
+            np.isnan(aux[-1])):
+        if aux.dtype.kind == "c":  # for complex all NaNs are considered equivalent
+            aux_firstnan = np.searchsorted(np.isnan(aux), True, side='left')
+        else:
+            aux_firstnan = np.searchsorted(aux, aux[-1], side='left')
+        if aux_firstnan > 0:
+            mask[1:aux_firstnan] = (
+                aux[1:aux_firstnan] != aux[:aux_firstnan - 1])
+        mask[aux_firstnan] = True
+        mask[aux_firstnan + 1:] = False
+    else:
+        mask[1:] = aux[1:] != aux[:-1]
 
     ret = (aux[mask],)
     if return_index:
@@ -565,6 +590,10 @@ def in1d(ar1, ar2, assume_unique=False, invert=False):
     ar1 = np.asarray(ar1).ravel()
     ar2 = np.asarray(ar2).ravel()
 
+    # Ensure that iteration through object arrays yields size-1 arrays
+    if ar2.dtype == object:
+        ar2 = ar2.reshape(-1, 1)
+
     # Check if one of the arrays may contain arbitrary objects
     contains_object = ar1.dtype.hasobject or ar2.dtype.hasobject
 
@@ -615,7 +644,7 @@ def _isin_dispatcher(element, test_elements, assume_unique=None, invert=None):
 @array_function_dispatch(_isin_dispatcher)
 def isin(element, test_elements, assume_unique=False, invert=False):
     """
-    Calculates `element in test_elements`, broadcasting over `element` only.
+    Calculates ``element in test_elements``, broadcasting over `element` only.
     Returns a boolean array of the same shape as `element` that is True
     where an element of `element` is in `test_elements` and False otherwise.
 

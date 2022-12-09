@@ -4,7 +4,9 @@ import scipy
 from skimage.transform import warp_polar
 import numpy as np
 import cv2
-from tkinter import filedialog, simpledialog
+from tkinter import Tk, filedialog, ttk, HORIZONTAL, simpledialog
+from pathlib import Path
+import csv
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
@@ -402,93 +404,147 @@ def ROIExtraction(data):
 
 
 if __name__ == '__main__':
+    root = Tk()
+    root.lift()
     # Get all the images
     print("Start\n")
-    images = get_files()
-    # videos = get_files()    # used to get the video
-    w = 0  # set to 1 in order to write the ROI
-    SNRs = []
-    sumR = 0
-    q = 0  # set to 1 for ROI implementation and 2 for video implementation
-    imNums = 1  # track the image numbers for naming purposes
 
-    if q == 0:
-        # fWhole = open("AOIP_Manuscript_Confocal_Images_SNR.txt", "w")
-        fWhole = open("OCVL_Manuscript_Split_Images_SNR.txt", "w")
-    elif q == 2:
-        f_video = open("SNR_confocal_video_00-04710_vid_998.txt", "w")
-    else:
-        fROI = open("SNR_MAP_ROI_64_75p_AC3.txt", "w")  # file to save the results in
+    pName = filedialog.askdirectory(title="Select the folder containing all videos of interest.", parent=root)
 
-    for i in images:
-        imageData = load_image(i)
-        if q != 1:
-            whole = aiq(imageData)
-            print("whole image SNR: " + str(whole))
-            fWhole.write(str(whole) + "\n")
-            imNums += 1
-        # If an ROI is needed q will be 1
-        else:
-            R, Gen_map, SNR_map, track_map, SNRs = ROIExtraction(imageData)
-            print("Generated the maps successfully")
-            # for d in range(SNRs.shape):
-                # fROI.write(str(SNRs[d]) + "\n")
-                # sumR = sumR + float(SNRs[d])
+    if not pName:
+        quit()
 
-            n = len(SNRs)
-            avgROIs = sumR / n
-            '''
-            # Save the generated arrays to construct the SNR maps in Matlab
-            name = "PythonSNRGeneratedMap_64AC1.tif"
-            savePath = "D:\Brea_Brennan\Image_Quality_Analysis\ROIs For Map\\" + name
-            cv2.imwrite(savePath, SNR_map)
+    allFiles = dict()
 
-            name = "PythonSumGeneratedMap_64AC1.tif"
-            savePath = "D:\Brea_Brennan\Image_Quality_Analysis\ROIs For Map\\" + name
-            cv2.imwrite(savePath, track_map)
-            '''
-            name = "PythonAvgGeneratedMap_128MS3.tif"
-            savePath = "D:\Brea_Brennan\Image_Quality_Analysis\ROIs For Map\\" + name
-            cv2.imwrite(savePath, Gen_map)
+    totFiles = 0
+    # Parse out the locations and filenames, store them in a hash table.
+    searchpath = Path(pName)
+    for path in searchpath.rglob("*.avi"):
+        if "piped" in path.name:
+            splitfName = path.name.split("_")
 
-        # Clear the entire list in case there are fewer ROIs generated in the next image and restart the sum
-        SNRs.clear()
+            if path.parent not in allFiles:
+                allFiles[path.parent] = []
+                allFiles[path.parent].append(path)
+            else:
+                allFiles[path.parent].append(path)
+
+            totFiles += 1
+
+
+
+    for l, loc in enumerate(allFiles):
+        res_dir = loc.joinpath(
+            "AIQ_Results")  # creates a results folder within loc ex: R:\00-23045\MEAOSLO1\20220325\Functional\Processed\Functional Pipeline\(1,0)\Results
+        res_dir.mkdir(exist_ok=True)  # actually makes the directory if it doesn't exist. if it exists it does nothing.
+
+        this_dirname = res_dir.parent.name
+        # images = get_files()
+        #videos = get_files()    # used to get the video
+        w = 0  # set to 1 in order to write the ROI
+        SNRs = []
         sumR = 0
+        q = 2  # set to 1 for ROI implementation and 2 for video implementation
+        imNums = 1  # track the image numbers for naming purposes
 
-        # To write the ROI generated to their own tif files
-        if w == 1:
-            for t in range(R.shape[2]):
-                name = "ROI" + str(t) + ".tif"
-                savePath = "D:\Brea_Brennan\Image_Quality_Analysis\ROIs For Map\\" + name
-                temp = R[..., t]
-                if np.all(temp == 0):
-                    print("All zeros! Do not right this ROI!")
-                else:
-                    cv2.imwrite(savePath, temp)
+        # if q == 0:
+        #     # fWhole = open("AOIP_Manuscript_Confocal_Images_SNR.txt", "w")
+        #     fWhole = open("OCVL_Manuscript_Split_Images_SNR.txt", "w")
+        # elif q == 2:
+        #
+        #     f_video = open("SNR_confocal_video_00-04710_vid_998.txt", "w")
+        # else:
+        #     fROI = open("SNR_MAP_ROI_64_75p_AC3.txt", "w")  # file to save the results in
 
-    # for v in videos:
-    #     cap = cv2.VideoCapture(v)
-    #     f_num = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    #     print(f_num)
-    #     for f in range(0, f_num):
-    #         ret, frame = cap.read()
-    #         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    #
-    #         # fig1 = plt.figure(1)
-    #         # plt.imshow(frame, cmap='gray')
-    #         # plt.title("Frame " + str(f))
-    #         # plt.show()
-    #
-    #         SNR_frame = aiq(frame)
-    #
-    #         print("Frame image SNR: " + str(SNR_frame))
-    #         f_video.write(str(SNR_frame) + "\n")
 
-    if q == 0:
-        fWhole.close()
-    elif q == 2:
-        f_video.close()
-    else:
-        fROI.close()
 
-    print("End\n")
+        # for i in images:
+        #     imageData = load_image(i)
+        #     if q != 1:
+        #         whole = aiq(imageData)
+        #         print("whole image SNR: " + str(whole))
+        #         fWhole.write(str(whole) + "\n")
+        #         imNums += 1
+        #     # If an ROI is needed q will be 1
+        #     else:
+        #         R, Gen_map, SNR_map, track_map, SNRs = ROIExtraction(imageData)
+        #         print("Generated the maps successfully")
+        #         # for d in range(SNRs.shape):
+        #             # fROI.write(str(SNRs[d]) + "\n")
+        #             # sumR = sumR + float(SNRs[d])
+        #
+        #         n = len(SNRs)
+        #         avgROIs = sumR / n
+        #         '''
+        #         # Save the generated arrays to construct the SNR maps in Matlab
+        #         name = "PythonSNRGeneratedMap_64AC1.tif"
+        #         savePath = "D:\Brea_Brennan\Image_Quality_Analysis\ROIs For Map\\" + name
+        #         cv2.imwrite(savePath, SNR_map)
+        #
+        #         name = "PythonSumGeneratedMap_64AC1.tif"
+        #         savePath = "D:\Brea_Brennan\Image_Quality_Analysis\ROIs For Map\\" + name
+        #         cv2.imwrite(savePath, track_map)
+        #         '''
+        #         name = "PythonAvgGeneratedMap_128MS3.tif"
+        #         savePath = "D:\Brea_Brennan\Image_Quality_Analysis\ROIs For Map\\" + name
+        #         cv2.imwrite(savePath, Gen_map)
+        #
+        #     # Clear the entire list in case there are fewer ROIs generated in the next image and restart the sum
+        #     SNRs.clear()
+        #     sumR = 0
+        #
+        #     # To write the ROI generated to their own tif files
+        #     if w == 1:
+        #         for t in range(R.shape[2]):
+        #             name = "ROI" + str(t) + ".tif"
+        #             savePath = "D:\Brea_Brennan\Image_Quality_Analysis\ROIs For Map\\" + name
+        #             temp = R[..., t]
+        #             if np.all(temp == 0):
+        #                 print("All zeros! Do not right this ROI!")
+        #             else:
+        #                 cv2.imwrite(savePath, temp)
+
+
+        file_num = 0
+        SNR_values = np.empty([len(allFiles[loc]), 176])
+        SNR_values[:] = np.nan
+
+        for file in allFiles[loc]:
+            cap = cv2.VideoCapture(str(file))
+            f_num = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            print("processing" + str(file))
+
+
+            for f in range(0, f_num):
+                ret, frame = cap.read()
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+                # fig1 = plt.figure(1)
+                # plt.imshow(frame, cmap='gray')
+                # plt.title("Frame " + str(f))
+                # plt.show()
+
+                SNR_frame = aiq(frame)
+
+                print("Frame image SNR: " + str(SNR_frame))
+                #f_video.write(str(SNR_frame) + "\n")
+                SNR_values[file_num,f] = SNR_frame
+
+
+            file_num = file_num + 1
+
+        csv_dir = res_dir.joinpath(this_dirname + "test_AIQ.csv")
+        print(csv_dir)
+        f = open(csv_dir, 'w', newline="")
+        writer = csv.writer(f, delimiter=',')
+        writer.writerows(SNR_values)
+        f.close
+
+        # if q == 0:
+        #     fWhole.close()
+        # elif q == 2:
+        #     f_video.close()
+        # else:
+        #     fROI.close()
+
+        print("End\n")

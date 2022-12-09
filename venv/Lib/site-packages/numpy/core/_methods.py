@@ -4,14 +4,15 @@ and the Python code for the NumPy-namespace function
 
 """
 import warnings
+from contextlib import nullcontext
 
 from numpy.core import multiarray as mu
 from numpy.core import umath as um
-from numpy.core._asarray import asanyarray
+from numpy.core.multiarray import asanyarray
 from numpy.core import numerictypes as nt
 from numpy.core import _exceptions
 from numpy._globals import _NoValue
-from numpy.compat import pickle, os_fspath, contextlib_nullcontext
+from numpy.compat import pickle, os_fspath
 
 # save those O(100) nanoseconds!
 umr_maximum = um.maximum.reduce
@@ -70,9 +71,10 @@ def _count_reduce_items(arr, axis, keepdims=False, where=True):
             axis = tuple(range(arr.ndim))
         elif not isinstance(axis, tuple):
             axis = (axis,)
-        items = nt.intp(1)
+        items = 1
         for ax in axis:
             items *= arr.shape[mu.normalize_axis_index(ax, arr.ndim)]
+        items = nt.intp(items)
     else:
         # TODO: Optimize case when `where` is broadcast along a non-reduction
         # axis and full sum is more excessive than needed.
@@ -164,7 +166,7 @@ def _mean(a, axis=None, dtype=None, out=None, keepdims=False, *, where=True):
     is_float16_result = False
 
     rcount = _count_reduce_items(arr, axis, keepdims=keepdims, where=where)
-    if rcount == 0 if where is True else umr_any(rcount == 0):
+    if rcount == 0 if where is True else umr_any(rcount == 0, axis=None):
         warnings.warn("Mean of empty slice.", RuntimeWarning, stacklevel=2)
 
     # Cast bool, unsigned int, and int to float64 by default
@@ -197,7 +199,7 @@ def _var(a, axis=None, dtype=None, out=None, ddof=0, keepdims=False, *,
 
     rcount = _count_reduce_items(arr, axis, keepdims=keepdims, where=where)
     # Make this warning show up on top.
-    if ddof >= rcount if where is True else umr_any(ddof >= rcount):
+    if ddof >= rcount if where is True else umr_any(ddof >= rcount, axis=None):
         warnings.warn("Degrees of freedom <= 0 for slice", RuntimeWarning,
                       stacklevel=2)
 
@@ -220,8 +222,10 @@ def _var(a, axis=None, dtype=None, out=None, ddof=0, keepdims=False, *,
     if isinstance(arrmean, mu.ndarray):
         arrmean = um.true_divide(arrmean, div, out=arrmean, casting='unsafe',
                                  subok=False)
-    else:
+    elif hasattr(arrmean, "dtype"):
         arrmean = arrmean.dtype.type(arrmean / rcount)
+    else:
+        arrmean = arrmean / rcount
 
     # Compute sum of squared deviations from mean
     # Note that x may not be inexact and that we need it to be an array,
@@ -279,7 +283,7 @@ def _ptp(a, axis=None, out=None, keepdims=False):
 
 def _dump(self, file, protocol=2):
     if hasattr(file, 'write'):
-        ctx = contextlib_nullcontext(file)
+        ctx = nullcontext(file)
     else:
         ctx = open(os_fspath(file), "wb")
     with ctx as f:

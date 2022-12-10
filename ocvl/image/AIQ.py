@@ -447,67 +447,11 @@ if __name__ == '__main__':
         q = 2  # set to 1 for ROI implementation and 2 for video implementation
         imNums = 1  # track the image numbers for naming purposes
 
-        # if q == 0:
-        #     # fWhole = open("AOIP_Manuscript_Confocal_Images_SNR.txt", "w")
-        #     fWhole = open("OCVL_Manuscript_Split_Images_SNR.txt", "w")
-        # elif q == 2:
-        #
-        #     f_video = open("SNR_confocal_video_00-04710_vid_998.txt", "w")
-        # else:
-        #     fROI = open("SNR_MAP_ROI_64_75p_AC3.txt", "w")  # file to save the results in
-
-
-
-        # for i in images:
-        #     imageData = load_image(i)
-        #     if q != 1:
-        #         whole = aiq(imageData)
-        #         print("whole image SNR: " + str(whole))
-        #         fWhole.write(str(whole) + "\n")
-        #         imNums += 1
-        #     # If an ROI is needed q will be 1
-        #     else:
-        #         R, Gen_map, SNR_map, track_map, SNRs = ROIExtraction(imageData)
-        #         print("Generated the maps successfully")
-        #         # for d in range(SNRs.shape):
-        #             # fROI.write(str(SNRs[d]) + "\n")
-        #             # sumR = sumR + float(SNRs[d])
-        #
-        #         n = len(SNRs)
-        #         avgROIs = sumR / n
-        #         '''
-        #         # Save the generated arrays to construct the SNR maps in Matlab
-        #         name = "PythonSNRGeneratedMap_64AC1.tif"
-        #         savePath = "D:\Brea_Brennan\Image_Quality_Analysis\ROIs For Map\\" + name
-        #         cv2.imwrite(savePath, SNR_map)
-        #
-        #         name = "PythonSumGeneratedMap_64AC1.tif"
-        #         savePath = "D:\Brea_Brennan\Image_Quality_Analysis\ROIs For Map\\" + name
-        #         cv2.imwrite(savePath, track_map)
-        #         '''
-        #         name = "PythonAvgGeneratedMap_128MS3.tif"
-        #         savePath = "D:\Brea_Brennan\Image_Quality_Analysis\ROIs For Map\\" + name
-        #         cv2.imwrite(savePath, Gen_map)
-        #
-        #     # Clear the entire list in case there are fewer ROIs generated in the next image and restart the sum
-        #     SNRs.clear()
-        #     sumR = 0
-        #
-        #     # To write the ROI generated to their own tif files
-        #     if w == 1:
-        #         for t in range(R.shape[2]):
-        #             name = "ROI" + str(t) + ".tif"
-        #             savePath = "D:\Brea_Brennan\Image_Quality_Analysis\ROIs For Map\\" + name
-        #             temp = R[..., t]
-        #             if np.all(temp == 0):
-        #                 print("All zeros! Do not right this ROI!")
-        #             else:
-        #                 cv2.imwrite(savePath, temp)
-
-
         file_num = 0
         SNR_values = np.empty([len(allFiles[loc]), 176])
         SNR_values[:] = np.nan
+
+        SNR_header = np.array(allFiles[loc])
 
         for file in allFiles[loc]:
             cap = cv2.VideoCapture(str(file))
@@ -533,18 +477,13 @@ if __name__ == '__main__':
 
             file_num = file_num + 1
 
+        SNR_values_wHeader = np.column_stack((SNR_header, SNR_values))
         csv_dir = res_dir.joinpath(this_dirname + "test_AIQ.csv")
         print(csv_dir)
         f = open(csv_dir, 'w', newline="")
         writer = csv.writer(f, delimiter=',')
-        writer.writerows(SNR_values)
+        writer.writerows(SNR_values_wHeader)
         f.close
 
-        # if q == 0:
-        #     fWhole.close()
-        # elif q == 2:
-        #     f_video.close()
-        # else:
-        #     fROI.close()
 
         print("End\n")

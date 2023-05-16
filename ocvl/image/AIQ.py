@@ -37,30 +37,44 @@ def welch_2d_windowing(image, window):
         for j in range(len(cols)):
             windowed_roi = np.multiply(window, image[rows[i]:(rows[i] + winDim[0]), cols[j]:(cols[j] + winDim[1])])
             im_win = image[rows[i]:(rows[i] + winDim[0]), cols[j]:(cols[j] + winDim[1])]
-            '''
+
             # Step 2: Display the Image inside the window
-            fig2 = plt.figure(2)
-            plt.imshow(im_win, cmap='gray')
-            plt.title("Image inside the Window")
-            
-            # Step 3: Display Windowed Image
-            fig3 = plt.figure(3)
-            plt.imshow(windowed_roi, cmap='gray')
-            plt.title("Windowed Image")
-            '''
+            # fig2 = plt.figure(2)
+            # plt.imshow(im_win, cmap='gray')
+            # plt.title("Image inside the Window")
+
+            # cv2.imwrite("P:\Brea_Brennan\Image_Quality_Analysis\Manuscript Data\ProcessedFiles\AlgorithmFlow\ROI.png",
+            #             im_win)
+
+            # # Step 3: Display Windowed Image
+            # fig3 = plt.figure(3)
+            # plt.imshow(windowed_roi, cmap='gray')
+            # plt.title("Windowed Image")
+
+            # cv2.imwrite("P:\Brea_Brennan\Image_Quality_Analysis\Manuscript Data\ProcessedFiles\AlgorithmFlow\win_ROI.png",
+            #             windowed_roi)
+
             comparr = scipy.fft.fftshift(scipy.fft.fft2(windowed_roi))
 
             # Normalize our dft by sqrt(N) so that window size doesn't affect SNR estimation.
             comparr = np.divide(comparr, np.sqrt(winDim[0] * winDim[1]))
             comparr = np.abs(comparr) * np.abs(comparr)
-            '''
-            # Step 4: Display the DFT of the windowed image
-            fig4 = plt.figure(4)
-            plt.imshow(np.log10(comparr), cmap='gray')
-            plt.title("DFT of Windowed Image")
 
-            plt.show(block=False)
-            '''
+            # # Step 4: Display the DFT of the windowed image
+            # fig4 = plt.figure(4)
+            # plt.imshow(np.log10(comparr), cmap='gray')
+            # plt.title("DFT of Windowed Image")
+            # plt.show(block=False)
+
+            # temp = np.log10(comparr)
+            # min_v = np.amin(temp)
+            # temp -= min_v
+            # max_v = np.amax(temp)
+            # temp /= max_v
+
+            # cv2.imwrite("P:\Brea_Brennan\Image_Quality_Analysis\Manuscript Data\ProcessedFiles\AlgorithmFlow\dft_win_ROI.png",
+            #             temp * 255)
+
             allroi[:, :, r] = comparr
             r += 1
 
@@ -73,6 +87,15 @@ def welch_2d_windowing(image, window):
     # plt.imshow(np.log10(smooth_pwrspect), cmap='gray')
     # plt.title("Average of the DFT from all Windowed Images")
     # plt.show(block=False)
+
+    temp = np.log10(smooth_pwrspect)
+    min_v = np.amin(temp)
+    temp -= min_v
+    max_v = np.amax(temp)
+    temp /= max_v
+
+    cv2.imwrite("P:\Brea_Brennan\Image_Quality_Analysis\Manuscript Data\ProcessedFiles\AlgorithmFlow\dft_all_win_ROI.png",
+                temp * 255)
 
     # plt.imshow(np.log10(stddev_pwrspect), cmap="gray")
     # plt.show()
@@ -103,7 +126,6 @@ def calculateSNR(welch_pwr_spect, totalROIS, image, window):
     # plt.title("Polar Spect Welch Each row")
     # plt.show(block=False)
 
-
     polar_avg_welch = np.nanmean(polar_spect_welch, axis=0)  # compute the mean along the specified axis, ignoring Nans
     bef = len(polar_avg_welch)
     aft = bef - 2
@@ -122,12 +144,10 @@ def calculateSNR(welch_pwr_spect, totalROIS, image, window):
 
     freqBins_welch[0] = 0
 
-    '''
     # Step 6: Display the Average polar plot
     fig6 = plt.figure(6)
-    plt.plot(freqBins, np.log10(polar_avg), color='c')
+    plt.plot(freqBins_welch, np.log10(polar_avg_welch), color='c')
     plt.title("Polar Plot")
-    '''
 
     # find the range that the noise is in
     signal_range_welch = polar_avg_welch[
@@ -137,24 +157,22 @@ def calculateSNR(welch_pwr_spect, totalROIS, image, window):
     total_range_welch = polar_avg_welch[(spacing_bins_welch < high_noise_cutoff_welch)]
 
     # Use of the DERIVATIVE of the power spectrum captures any areas of interest that would cause sudden changes
-    # diffs = np.diff(polar_avg)
+    diffs = np.diff(polar_avg_welch)
 
     signal_power_change_welch = freq_bin_size_welch * np.sum(abs(np.diff(signal_range_welch)))
     noise_power_change_welch = freq_bin_size_welch * np.sum(abs(np.diff(total_range_welch)))
 
-    '''
     # Step 7: Take the derivative of the polar average
     fig7 = plt.figure(7)
-    xs = np.linspace(1/low_noise_cutoff, 1/high_noise_cutoff, len(diffs) - 1)
-    plt.plot(freqBins[1:], diffs, color='r', label='derivative')
+    xs = np.linspace(1/low_noise_cutoff_welch, 1/high_noise_cutoff_welch, len(total_range_welch) - 1)
+    plt.plot(freqBins_welch[1:], diffs, color='r', label='derivative')
     # plt.xlim([(1/low_noise_cutoff)-0.005, (1/high_noise_cutoff)+0.005])
-    plt.ylim([-200, 200])
-    plt.axvline(1/low_noise_cutoff, color='c', label='Low Cutoff')
-    plt.axvline(1/high_noise_cutoff, color='y', label='High Cutoff')
+    plt.ylim([-1000, 1000])
+    plt.xlim([0, 0.4])
+    plt.axvline(1/low_noise_cutoff_welch, color='c', label='Low Cutoff')
+    plt.axvline(1/high_noise_cutoff_welch, color='y', label='High Cutoff')
     plt.title("Derivative of Polar Plot")
-
     plt.show(block=False)
-    '''
 
     SNR_welch = 10 * np.log10(signal_power_change_welch / noise_power_change_welch)
     SNR_ROIs = []
@@ -256,13 +274,14 @@ def calculateSNR(welch_pwr_spect, totalROIS, image, window):
 def aiq(image):
     # Create a window that is effectively a quarter of our image size.
     windowData = hanning_2d(image.shape, 0.25)  # makes the hanning window defined above
-    '''
+
     # Step 1: Display the hann Window
-    fig1 = plt.figure(1)
-    plt.imshow(windowData, cmap='gray')
-    plt.title("Hann Window")
-    plt.show()
-    '''
+    # fig1 = plt.figure(1)
+    # plt.imshow(windowData, cmap='gray')
+    # plt.title("Hann Window")
+    # plt.show()
+    cv2.imwrite("P:\Brea_Brennan\Image_Quality_Analysis\Manuscript Data\ProcessedFiles\AlgorithmFlow\han_win.png",
+            windowData*255)
 
     welchPower, allTheROIs = welch_2d_windowing(image, windowData)  # Calling the function that creates the graph window
     # Need to make the below into a function so that this is done on each of the ROIs returned above - get an SNR for each ROI and then with those ROIs we will make a histogram with those
@@ -404,28 +423,28 @@ def ROIExtraction(data):
 if __name__ == '__main__':
     # Get all the images
     print("Start\n")
-    images = get_files()
-    # videos = get_files()    # used to get the video
+    # images = get_files()
+    videos = get_files()    # used to get the video
     w = 0  # set to 1 in order to write the ROI
     SNRs = []
     sumR = 0
-    q = 0  # set to 1 for ROI implementation and 2 for video implementation
+    q = 2  # set to 1 for ROI implementation and 2 for video implementation
     imNums = 1  # track the image numbers for naming purposes
 
     if q == 0:
         # fWhole = open("AOIP_Manuscript_Confocal_Images_SNR.txt", "w")
-        fWhole = open("OCVL_Manuscript_Split_Images_SNR.txt", "w")
+        fWhole = open("Jenna_ARVO_Images_SNR_final.txt", "w")
     elif q == 2:
-        f_video = open("SNR_confocal_video_00-04710_vid_998.txt", "w")
+        f_video = open("SNR_confocal_video_00-04710_vid_992.txt", "w")
     else:
         fROI = open("SNR_MAP_ROI_64_75p_AC3.txt", "w")  # file to save the results in
-
+    '''
     for i in images:
         imageData = load_image(i)
         if q != 1:
             whole = aiq(imageData)
-            print("whole image SNR: " + str(whole))
-            fWhole.write(str(whole) + "\n")
+            print("image: " + str(i) + " whole image SNR: " + str(whole))
+            fWhole.write(str(i) +"," + str(whole) + "\n")
             imNums += 1
         # If an ROI is needed q will be 1
         else:
@@ -437,16 +456,16 @@ if __name__ == '__main__':
 
             n = len(SNRs)
             avgROIs = sumR / n
-            '''
+            
             # Save the generated arrays to construct the SNR maps in Matlab
-            name = "PythonSNRGeneratedMap_64AC1.tif"
-            savePath = "D:\Brea_Brennan\Image_Quality_Analysis\ROIs For Map\\" + name
-            cv2.imwrite(savePath, SNR_map)
-
-            name = "PythonSumGeneratedMap_64AC1.tif"
-            savePath = "D:\Brea_Brennan\Image_Quality_Analysis\ROIs For Map\\" + name
-            cv2.imwrite(savePath, track_map)
-            '''
+            # name = "PythonSNRGeneratedMap_64AC1.tif"
+            # savePath = "D:\Brea_Brennan\Image_Quality_Analysis\ROIs For Map\\" + name
+            # cv2.imwrite(savePath, SNR_map)
+            # 
+            # name = "PythonSumGeneratedMap_64AC1.tif"
+            # savePath = "D:\Brea_Brennan\Image_Quality_Analysis\ROIs For Map\\" + name
+            # cv2.imwrite(savePath, track_map)
+            
             name = "PythonAvgGeneratedMap_128MS3.tif"
             savePath = "D:\Brea_Brennan\Image_Quality_Analysis\ROIs For Map\\" + name
             cv2.imwrite(savePath, Gen_map)
@@ -465,24 +484,26 @@ if __name__ == '__main__':
                     print("All zeros! Do not right this ROI!")
                 else:
                     cv2.imwrite(savePath, temp)
+    '''
 
-    # for v in videos:
-    #     cap = cv2.VideoCapture(v)
-    #     f_num = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    #     print(f_num)
-    #     for f in range(0, f_num):
-    #         ret, frame = cap.read()
-    #         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    #
-    #         # fig1 = plt.figure(1)
-    #         # plt.imshow(frame, cmap='gray')
-    #         # plt.title("Frame " + str(f))
-    #         # plt.show()
-    #
-    #         SNR_frame = aiq(frame)
-    #
-    #         print("Frame image SNR: " + str(SNR_frame))
-    #         f_video.write(str(SNR_frame) + "\n")
+    for v in videos:
+        cap = cv2.VideoCapture(v)
+        f_num = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        print(f_num)
+        for f in range(0, f_num):
+            ret, frame = cap.read()
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+            # fig1 = plt.figure(1)
+            # plt.imshow(frame, cmap='gray')
+            # plt.title("Frame " + str(f))
+            # plt.show()
+            # plt.waitforbuttonpress()
+
+            SNR_frame = aiq(frame)
+
+            print("Frame image SNR: " + str(SNR_frame))
+            f_video.write(str(SNR_frame) + "\n")
 
     if q == 0:
         fWhole.close()

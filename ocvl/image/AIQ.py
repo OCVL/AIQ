@@ -33,7 +33,7 @@ def welch_2d_windowing(image, window):
 
     allroi = np.zeros(shape=[winDim[0], winDim[1], (len(rows)) * (len(cols))])  # array of zeros with the shape defined
 
-    # This is just setting up the window for the graph I believe
+
     r = 0
     for i in range(len(rows)):
         for j in range(len(cols)):
@@ -67,7 +67,7 @@ def welch_2d_windowing(image, window):
             r += 1
 
     smooth_pwrspect = np.mean(allroi, axis=2)
-    # stddev_pwrspect = np.std(allroi, axis=2)  # This is not used why is that?
+    # stddev_pwrspect = np.std(allroi, axis=2)
 
 
     # Step 5: Display the average of the DFT

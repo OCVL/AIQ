@@ -1,1 +1,5 @@
-venv/
+venv/*
+venv
+**/.idea/misc.xml
+**/.idea/workspace.xml
+**/.idea/tasks.xml

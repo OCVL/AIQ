@@ -1,38 +1,21 @@
 import AIQ
 import cv2
-import numpy as np
 
 if __name__ == '__main__':
-
-    vids = AIQ.get_files()
-
-    # f = open("video_SNR_investigation_all_confocal_vid_SNR_list.txt", "w")
-    f = open("video_SNR_investigation_all_confocal_vid_SNR_list.csv", "w")
-    # f2 = open("video_SNR_investigation_all_confocal_vid_SNR_frame_avg_list.txt", "w")
-    average_SNR = []
-    for v in vids:
-        frame_snrs = []
+    videos = AIQ.get_files()
+    filename = "video_frame_snr_values.txt"
+    f_video = open(filename, "w")
+    for v in videos:
         cap = cv2.VideoCapture(v)
         f_num = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        print(f_num)
-        parts = v.split('/')
-        f.write("Video Name: " + parts[-1] + "\n")
-        for b in range(0, f_num):
+
+        for f in range(0, f_num):
+            # open video and obtain frame in gray scale
             ret, frame = cap.read()
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-            SNR_frame = AIQ.aiq(frame)
-            frame_snrs.append(SNR_frame)
+            # calculate the SNR value
+            frame_snr = AIQ.aiq(frame)
 
-            print("Frame image SNR: " + str(SNR_frame))
-            # f.write(str(SNR_frame) + "\n")
-            f.write(str(SNR_frame) + ",")
-
-        f.write("\n\n")
-        # frame_snrs = [float(i) for i in frame_snrs]
-        # avg_snr = np.sum(frame_snrs) / len(frame_snrs)
-        # average_SNR.append(avg_snr)
-        # f2.write(str(parts[-1]) + ", " + str(avg_snr) + "\n")
-
-    f.close()
-    # f2.close()
+            # write the SNR value to file
+            f_video.write(str(frame_snr) + "\n")

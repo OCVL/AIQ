@@ -4,10 +4,10 @@ Automatic Image Quality Photoreceptor Based AO Images
 The enclosed software was developed for determining the image quality of photoreceptor based AO images. Please cite the following paper when using the software in your publications:
 B.D. Brennan, H. Heitkotter, J. Carroll, S. Tarima, and R. F. Cooper, "Quantifying image quality in AOSLO images of photoreceptors", Biomedical Optics Express, Vol. TBD(TBD), pp. TBD, 2024.
 
- The code for this software was written and tested using Python 3.10 using the PyCharm IDE.
+ The code for this software was written and tested using Python 3.10 in the PyCharm IDE.
 
- ### Main function of AIQ.py Script:
-  * Allows for each image to be selected from a file explorer window
+ ### Main functions of AIQ.py Script:
+  * Allows for each image to be selected from a pop-up file explorer window
   * Allows for the name of the file where the SNR and the pull image path are saved
   * Determines the SNR of all the images selected
 

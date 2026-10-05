@@ -6,6 +6,7 @@ import numpy as np
 import cv2
 from tkinter import filedialog, simpledialog
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+import os
 
 
 def hanning_2d(dimension, fraction):
@@ -38,10 +39,14 @@ def welch_2d_windowing(image, window):
     im_dim = image.shape  # Shape parameter of the image
     win_dim = window.shape  # Shape parameter of the window
 
-    # Create steps with a 50% overlap between the windows
-    rows = range(0, int(im_dim[0] - win_dim[0]), int(np.floor(
-        win_dim[0] / 2.0)))
-    cols = range(0, int(im_dim[1] - win_dim[1]), int(np.floor(win_dim[1] / 2.0)))
+    # Create steps with a 50% overlap between the windows - updated to remove rounding error that causes arg 3 to =0
+    if (win_dim[0] / 2.0) < 1:
+        arg3 = 1
+    else:
+        arg3 = win_dim[0] / 2.0
+
+    rows = range(0, int(im_dim[0] - win_dim[0]), int(np.floor(arg3)))
+    cols = range(0, int(im_dim[1] - win_dim[1]), int(np.floor(arg3)))
 
     all_roi = np.zeros(shape=[win_dim[0], win_dim[1], (len(rows)) * (len(cols))])
 
@@ -93,10 +98,16 @@ def calculate_snr(welch_pwr_spect):
     aft = bef - 2
     polar_avg_welch = polar_avg_welch[0:aft]
 
+    # need a check to make sure the aft value is not 0 - if 0 the array is empty and cant be indexed into
+    if aft == 0:
+        snr = -1
+        print("SNR Cant be determined.")
+        return snr
+
     # Determine the frequency cutoff between signal/noise
     freq_bin_size_welch = rho_sampling / polar_spect_welch.shape[1]  # The size/span of each bin
-    freq_bins_welch = np.arange(polar_spect_welch.shape[
-                             1] - 2) * freq_bin_size_welch  # evenly space the values and multiply by the size/span of each bin
+    # evenly space the values and multiply by the size/span of each bin
+    freq_bins_welch = np.arange(polar_spect_welch.shape[1] - 2) * freq_bin_size_welch
     freq_bins_welch[0] = -1  # Our first element is the DC term - so exclude it
 
     spacing_bins_welch = 1 / freq_bins_welch
@@ -156,18 +167,24 @@ def load_image(image_filename):
 def get_files():
     """
     Function that allows the user to select all the image files that are to be ran through the algorithm
-    :return: List of files that were selected
+    :return:
+        file_list: List of files that were selected
+        path: Path to the folder containing the images so the file can be saved with the selected images
     """
 
     f2 = filedialog.askopenfilenames()
     file_list = list(f2)
-    return file_list
+    temp = f2[0].split("/")[0:-1]
+    path = "\\".join(temp)
+    return file_list, path
 
 
 if __name__ == '__main__':
     # Get all the images
-    images = get_files()
-    fileHandle = open("SNR_values.txt", "w")
+    images, path = get_files()
+    filename = "Code_check_20261005.txt"
+    full_path = os.path.join(path, filename)
+    fileHandle = open(full_path, "w")
 
     for i in images:
         # Load in image

@@ -2,7 +2,7 @@
 Automatic Image Quality Photoreceptor Based AO Images
 
 The enclosed software was developed for determining the image quality of photoreceptor based AO images. Please cite the following paper when using the software in your publications:
-B.D. Brennan, H. Heitkotter, J. Carroll, S. Tarima, and R. F. Cooper, "Quantifying image quality in AOSLO images of photoreceptors", Biomedical Optics Express, Vol. TBD(TBD), pp. TBD, 2024.
+Brea D. Brennan, Heather Heitkotter, Joseph Carroll, Sergey Tarima, and Robert F. Cooper, "Quantifying image quality in AOSLO images of photoreceptors," Biomed. Opt. Express 15, 2849-2862 (2024)
 
  The code for this software was written and tested using Python 3.10 in the PyCharm IDE.
 
@@ -24,3 +24,4 @@ Following image selection, the output file will be saved to the same directory o
   * numpy
   * cv2
   * From tkinter the fieldialog function
+  * os
